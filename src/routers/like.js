@@ -1,9 +1,10 @@
 const express = require("express");
-const Like = require("../models/like");
-const auth = require("../middleware/auth");
-const Product = require("../models/product");
-const User = require("../models/user");
 const router = new express.Router();
+
+const auth = require("../middleware/auth");
+
+const Like = require("../models/like");
+const Product = require("../models/product");
 
 //Like the product
 router.post("/products/likes/:productId", auth, async (req, res) => {
@@ -25,6 +26,7 @@ router.post("/products/likes/:productId", auth, async (req, res) => {
         error: "already liked",
       });
     }
+    await product.depopulate("likes");
 
     const like = new Like({
       author: req.user._id,
@@ -91,57 +93,6 @@ router.get("/users/likes/me", auth, async (req, res) => {
   }
 });
 
-//get all likes?completed=false
-//GET /like?limit=10&skip=0
-//GET /likes?sortBy=createdAt:desc
-router.get("/likes-count/:productId", auth, async (req, res) => {
-  console.log("right");
-  const match = {};
-  const sort = {};
-  if (req.query.completed) {
-    match.completed = req.query.completed === "true";
-  }
-  if (req.query.sortBy) {
-    const parts = req.query.sortBy.split(":");
-    sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
-  }
-  try {
-    await req.user.populate({
-      path: "likes",
-      match,
-      options: {
-        limit: parseInt(req.query.limit),
-        skip: parseInt(req.query.skip),
-        sort,
-      },
-    });
-    res.send(req.user.likes);
-  } catch (error) {
-    res.status(500).send();
-  }
-});
-
-//get like by id
-router.get("/likes/:likeId", auth, async (req, res) => {
-  try {
-    // await req.user.populate("likes");
-    // const userLikes = user.likes;
-    // const like = await userLikes.find((tsk) => {
-    //   return tsk._id === req.params.likeId;
-    // });
-
-    const _id = req.params.likeId;
-    const like = await Like.findOne({ _id, owner: req.user._id });
-    console.log(like);
-    if (!like) {
-      return res.status(404).send();
-    }
-    res.send(like);
-  } catch (error) {
-    res.status(500).send();
-  }
-});
-
 //Delete like by id
 router.delete("/likes/:likeId", auth, async (req, res) => {
   try {
@@ -150,12 +101,18 @@ router.delete("/likes/:likeId", auth, async (req, res) => {
       owner: req.user._id,
     });
     if (!like) {
-      return res.status(404).send();
+      return res.status(404).send({
+        error: "you have not liked",
+      });
     }
-    res.send(like);
+    res.send({
+      success: "like deleted successfully",
+    });
   } catch (error) {
     console.log(error);
-    res.status(400).send(error.message);
+    res.status(500).send({
+      error: "internal server error",
+    });
   }
 });
 

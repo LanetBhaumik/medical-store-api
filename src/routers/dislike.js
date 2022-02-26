@@ -26,7 +26,7 @@ router.post("/products/dislikes/:productId", auth, async (req, res) => {
         error: "already disliked",
       });
     }
-
+    await product.depopulate("dislikes");
     const dislike = new Dislike({
       author: req.user._id,
       product: req.params.productId,
@@ -36,16 +36,13 @@ router.post("/products/dislikes/:productId", auth, async (req, res) => {
       success: "disliked",
     });
   } catch (error) {
-    if (error.code == 11000) {
-      return res.status(400).send({
-        error: "already disliked",
-      });
-    }
-    res.status(400).send(error.message);
+    res.status(500).send({
+      error: "internal server error",
+    });
   }
 });
 
-//get all likes on product XYZ
+//get all dislikes on product XYZ
 router.get("/dislikes/:productId", auth, async (req, res) => {
   try {
     const product = await Product.findById(req.params.productId);
@@ -62,7 +59,6 @@ router.get("/dislikes/:productId", auth, async (req, res) => {
         select: "name email -_id",
       },
     });
-    console.log(product);
     res.status(200).send({
       dislikeCount: product.dislikes.length,
       dislikes: product.dislikes,
@@ -96,70 +92,26 @@ router.get("/users/dislikes/me", auth, async (req, res) => {
   }
 });
 
-//get all likes?completed=false
-//GET /like?limit=10&skip=0
-//GET /likes?sortBy=createdAt:desc
-router.get("/likes", auth, async (req, res) => {
-  const match = {};
-  const sort = {};
-  if (req.query.completed) {
-    match.completed = req.query.completed === "true";
-  }
-  if (req.query.sortBy) {
-    const parts = req.query.sortBy.split(":");
-    sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
-  }
-  try {
-    await req.user.populate({
-      path: "likes",
-      match,
-      options: {
-        limit: parseInt(req.query.limit),
-        skip: parseInt(req.query.skip),
-        sort,
-      },
-    });
-    res.send(req.user.likes);
-  } catch (error) {
-    res.status(500).send();
-  }
-});
-
-//get  dislikeby id
-router.get("/likes/:likeId", auth, async (req, res) => {
-  try {
-    // await req.user.populate("likes");
-    // const userDislikes = user.likes;
-    // const  dislike= await userDislikes.find((tsk) => {
-    //   return tsk._id === req.params.likeId;
-    // });
-
-    const _id = req.params.likeId;
-    const dislike = await Dislike.findOne({ _id, owner: req.user._id });
-    console.log(like);
-    if (!like) {
-      return res.status(404).send();
-    }
-    res.send(like);
-  } catch (error) {
-    res.status(500).send();
-  }
-});
-
-//Delete  dislikeby id
-router.delete("/likes/:likeId", auth, async (req, res) => {
+//Delete  dislike by id
+router.delete("/dislikes/:dislikeId", auth, async (req, res) => {
   try {
     const dislike = await Dislike.findOneAndDelete({
-      _id: req.params.likeId,
+      _id: req.params.dislikeId,
       owner: req.user._id,
     });
-    if (!like) {
-      return res.status(404).send();
+    if (!dislike) {
+      return res.status(404).send({
+        error: "you have not disliked",
+      });
     }
-    res.send(like);
+    res.send({
+      success: "dislike deleted successfully",
+    });
   } catch (error) {
     console.log(error);
-    res.status(400).send(error.message);
+    res.status(500).send({
+      error: "internal server error",
+    });
   }
 });
 

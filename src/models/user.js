@@ -1,8 +1,13 @@
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
-const Schema = mongoose.Schema;
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
+
+const Product = require("./product");
+const ProductType = require("./productType");
+const Like = require("./like");
+const Dislike = require("./dislike");
+const Comment = require("./comment");
 
 const userSchema = new mongoose.Schema(
   {
@@ -135,23 +140,36 @@ userSchema.statics.findByCredentials = async (email, password) => {
 //Hash the plain text password before saving
 userSchema.pre("save", async function (next) {
   const user = this; //'this' is a document that is going to be save.
-
   if (user.isModified("password")) {
     user.password = await bcrypt.hash(user.password, 8);
   }
-
   next(); // it runs after function runs
 });
 
-//Delete user task when user is removed.
-// userSchema.pre("remove", async function (next) {
-//   const user = this;
-//   await Task.deleteMany({
-//     owner: user._id,
-//   });
+// Delete user's product, producttype, like, dislike, comment when user is removed.
+userSchema.pre("remove", async function (next) {
+  const user = this;
+  await Product.deleteMany({
+    owner: user._id,
+  });
+  await ProductType.deleteMany({
+    owner: user._id,
+  });
+  await Like.deleteMany({
+    author: user._id,
+  });
+  await Dislike.deleteMany({
+    author: user._id,
+  });
+  await Comment.deleteMany({
+    author: user._id,
+  });
 
-//   next();
-// });
+  next();
+});
+
+userSchema.set("toObject", { virtuals: true });
+userSchema.set("toJSON", { virtuals: true });
 
 const User = mongoose.model("User", userSchema);
 

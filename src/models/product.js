@@ -1,4 +1,8 @@
 const mongoose = require("mongoose");
+const Like = require("./like");
+const Dislike = require("./dislike");
+const Comment = require("./comment");
+
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -78,6 +82,24 @@ productSchema.methods.toJSON = function () {
   delete productObject.__v;
   return productObject;
 };
+
+// Delete product's like, dislike and comment when product is removed.
+productSchema.pre("remove", async function (next) {
+  const product = this;
+  await Like.deleteMany({
+    product: product._id,
+  });
+  await Dislike.deleteMany({
+    product: product._id,
+  });
+  await Comment.deleteMany({
+    product: product._id,
+  });
+
+  next();
+});
+productSchema.set("toObject", { virtuals: true });
+productSchema.set("toJSON", { virtuals: true });
 
 const Product = mongoose.model("Product", productSchema);
 

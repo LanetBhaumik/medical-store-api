@@ -1,8 +1,10 @@
 const express = require("express");
-const Product = require("../models/product");
-const auth = require("../middleware/auth");
-const ProductType = require("../models/productType");
 const router = new express.Router();
+
+const auth = require("../middleware/auth");
+
+const Product = require("../models/product");
+const ProductType = require("../models/productType");
 
 //new product creation
 router.post("/products", auth, async (req, res) => {
@@ -23,83 +25,44 @@ router.post("/products", auth, async (req, res) => {
     await product.save();
     res.status(201).send(product);
   } catch (error) {
-    res.status(400).send(error.message);
+    res.status(500).send({
+      error: "internal server error",
+    });
   }
 });
 
-// // get most liked product     GET /products?mostLiked=true
-// router.get("/products", auth, async (req, res) => {
-//   try {
-//     console.log("new roter called");
-//     // most liked product logic
-//     // if (req.query.mostLiked) {
-//     //   const products = await Product.find().sort();
-//     // }
-
-//     // await req.user.populate({
-//     //   path: "products",
-//     //   options: {
-//     //     limit: parseInt(req.query.limit),
-//     //     skip: parseInt(req.query.skip),
-//     //   },
-//     // });
-
-//     if (req.query.mostLiked) {
-//       const products = await Product.find();
-//     }
-
-//     res.send();
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).send({
-//       error: "internal server error",
-//     });
-//   }
-// });
-
-//GET /products?limit=10&skip=0
-//GET /products?sortBy=createdAt:desc
-
-// get most recent product    GET /products?mostRecent=true
-// get most liked product     GET /products?mostLiked=true
-
-router.get("/products", auth, async (req, res) => {
-  //sorting logic
-  const sortOptions = {};
-  if (req.query.sortBy) {
-    const parts = req.query.sortBy.split(":");
-    sortOptions[parts[0]] = parts[1] === "desc" ? -1 : 1;
-  }
-
-  //most recent product logic
-  if (req.query.mostRecent) {
-    const mostRecentProduct = await Product.find().sort({ createdAt: -1 });
-    return res.send(mostRecentProduct[0]);
-  }
-
+//pagination                  -GET /products?limit=10&skip=0
+//sorting                     -GET /products?sortBy=createdAt:desc
+// get most recent product    -GET /products?mostRecent=true
+// get most liked product     -GET /products?mostLiked=true
+router.get("/products", async (req, res) => {
   try {
-    const products = await Product.find().sort(sortOptions);
+    //sorting logic
+    const sortOptions = {};
+    if (req.query.sortBy) {
+      const parts = req.query.sortBy.split(":");
+      sortOptions[parts[0]] = parts[1] === "desc" ? -1 : 1;
+    }
+
+    //most recent product logic
+    if (req.query.mostRecent) {
+      const mostRecentProduct = await Product.find()
+        .sort({ createdAt: -1 })
+        .limit(1);
+      return res.send(mostRecentProduct);
+    }
+
+    const products = await Product.find().sort(sortOptions).populate({
+      path: "_id",
+      path: "likesCount",
+    });
 
     //most liked product logic
     if (req.query.mostLiked) {
-      let initialProduct = {
-        likesCount: 0,
-      };
-      products.forEach(async (product) => {});
-      const mostLikedProduct = await products.reduce(
-        async (prevProduct, product) => {
-          await product.populate({
-            path: "likesCount",
-          });
-          console.log("inside", product);
-          if (product.likesCount > prevProduct.likesCount) {
-            return product;
-          }
-          return prevProduct;
-        },
-        initialProduct
-      );
-      return res.send(mostLikedProduct);
+      products.sort((a, b) => {
+        return b.likesCount - a.likesCount;
+      });
+      return res.send(products[0]);
     }
 
     res.send(products);
@@ -120,6 +83,10 @@ router.get("/products/:productId", auth, async (req, res) => {
         error: "product not found",
       });
     }
+    await product.populate({
+      path: "owner",
+      select: "name -_id",
+    });
 
     await product.populate("likesCount");
 
@@ -127,7 +94,7 @@ router.get("/products/:productId", auth, async (req, res) => {
 
     await product.populate({
       path: "comments",
-      select: "title description product -author",
+      select: "title description -product author",
       options: {
         limit: 5,
         sort: {
@@ -193,17 +160,22 @@ router.patch("/products/:productId", auth, async (req, res) => {
 //Delete product by id
 router.delete("/products/:productId", auth, async (req, res) => {
   try {
-    const product = await Product.findOneAndDelete({
+    const product = await Product.findOne({
       _id: req.params.productId,
       owner: req.user._id,
     });
     if (!product) {
-      return res.status(404).send();
+      return res.status(404).send({
+        error: "product not found or you do not have permission to delete",
+      });
     }
+    await product.remove();
     res.send(product);
   } catch (error) {
     console.log(error);
-    res.status(500).send(error);
+    res.status(500).send({
+      error: "internal server error",
+    });
   }
 });
 

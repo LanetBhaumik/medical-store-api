@@ -1,6 +1,7 @@
 const express = require("express");
 const ProductType = require("../models/productType");
 const auth = require("../middleware/auth");
+const User = require("../models/user");
 const router = new express.Router();
 
 //create product types
