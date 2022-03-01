@@ -25,19 +25,29 @@ router.post("/products", auth, async (req, res) => {
     await product.save();
     res.status(201).send(product);
   } catch (error) {
+    console.log(error);
+    if (error.code === 11000) {
+      return res.status(400).send({
+        error: `${Object.keys(error.keyValue)} already exists`,
+      });
+    }
     res.status(500).send({
       error: "internal server error",
     });
   }
 });
 
-//pagination                  -GET /products?limit=10&skip=0
 //sorting                     -GET /products?sortBy=createdAt:desc
 // get most recent product    -GET /products?mostRecent=true
 // get most liked product     -GET /products?mostLiked=true
 router.get("/products", async (req, res) => {
   try {
+    if (req.query.mostLiked) {
+      req.query.mostLiked = req.query.mostLiked === "true";
+    }
+
     //sorting logic
+
     const sortOptions = {};
     if (req.query.sortBy) {
       const parts = req.query.sortBy.split(":");

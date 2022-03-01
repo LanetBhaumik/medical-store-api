@@ -6,6 +6,11 @@ const multer = require("multer");
 const { append } = require("express/lib/response");
 const router = new express.Router();
 
+router.get("/", async (req, res) => {
+  const x = { nsme: "keval" };
+  res.send(x);
+});
+
 //new user creation
 router.post("/users", async (req, res) => {
   try {
@@ -14,6 +19,7 @@ router.post("/users", async (req, res) => {
     const token = await user.generateAuthToken();
     res.status(201).send({ user: user, token });
   } catch (error) {
+    console.log(error);
     res.status(400).send(error);
   }
 });

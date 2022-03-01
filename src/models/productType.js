@@ -35,6 +35,6 @@ productTypeSchema.methods.toJSON = function () {
   return productTypeObject;
 };
 
-const ProductType = mongoose.model("ProductType", productTypeSchema);
+const ProductType = mongoose.model("Product_type", productTypeSchema);
 
 module.exports = ProductType;

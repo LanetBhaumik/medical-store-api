@@ -6,9 +6,11 @@ const productTypeRouter = require("./routers/productType");
 const commentRouter = require("./routers/comment");
 const likeRouter = require("./routers/like");
 const dislikeRouter = require("./routers/dislike");
+const cors = require("cors");
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 app.use(userRouter);
 app.use(productRouter);
